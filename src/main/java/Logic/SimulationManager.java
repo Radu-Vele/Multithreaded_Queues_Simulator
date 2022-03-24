@@ -49,11 +49,21 @@ public class SimulationManager implements Runnable {
             globalSimulationTime.getAndIncrement(); //start from time = 1
 
             if(!generatedClients.isEmpty()) {
-                Client toSend = generatedClients.get(0);
-                if (toSend.getTArrival() <= globalSimulationTime.get()) { //TODO: if more arrive at the same time?
-                    TQueue chosen = getMinTimeQueue();
-                    chosen.addClient(toSend);
-                    generatedClients.remove(toSend);
+                boolean condition = true;
+                while(condition) {
+                    if(generatedClients.isEmpty()) {
+                        condition = false;
+                    }
+                    else {
+                        Client toSend = generatedClients.get(0);
+                        if (toSend.getTArrival() <= globalSimulationTime.get()) { //TODO: if more arrive at the same time?
+                            TQueue chosen = getMinTimeQueue();
+                            chosen.addClient(toSend);
+                            generatedClients.remove(toSend);
+                        } else {
+                            condition = false;
+                        }
+                    }
                 }
             }
 
