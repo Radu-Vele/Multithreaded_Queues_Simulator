@@ -10,13 +10,22 @@ public class TQueue implements Runnable    {
     private boolean simRunning;
 
     public TQueue() {
-        this.waitingPeriod.set(0);
-        simRunning = false;
+        this.waitingPeriod = new AtomicInteger(0);
+        simRunning = true;
     }
 
     @Override
     public void run() { //run method implemented for a queue
         while(this.simRunning) {
+            if (this.q.isEmpty()) {
+                try {
+                    Thread.sleep(1000); //stop thread until client is served in seconds
+                } catch (InterruptedException e) {
+                    System.out.println("\nInterrupted thread sleep!");
+                    return;
+                }
+                continue;
+            }
             Client currClient = q.peek();
             try {
                 Thread.sleep(currClient.getTService() * 1000); //stop thread until client is served in seconds
@@ -34,11 +43,30 @@ public class TQueue implements Runnable    {
     }
 
     public void addClient(Client toAdd) {
+        //TODO: check size-constraints
         q.add(toAdd);
         this.waitingPeriod.getAndAdd(toAdd.getTService());
     }
 
     public AtomicInteger getWaitingPeriod() {
         return waitingPeriod;
+    }
+
+    public void setSimRunning(boolean simRunning) {
+        this.simRunning = simRunning;
+    }
+
+    public String printContents() {
+        String toReturn = new String();
+        if(this.q.isEmpty()) {
+            toReturn = "closed";
+        }
+        else {
+            for (Client currClient : q) {
+                toReturn = toReturn + currClient.printFriendly();
+            }
+        }
+
+        return toReturn;
     }
 }

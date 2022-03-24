@@ -1,11 +1,11 @@
 package Model;
 
-public class Client {
-    private String ID;
+public class Client implements Comparable<Client>{
+    private int ID;
     private int tService;
     private int tArrival;
 
-    public Client(String ID, int tArrival, int tService) {
+    public Client(int ID, int tArrival, int tService) {
         this.ID = ID;
         this.tService = tService;
         this.tArrival = tArrival;
@@ -21,5 +21,22 @@ public class Client {
 
     public void decreaseServiceTime() {
         this.tService--;
+    }
+
+    @Override
+    public int compareTo(Client o) {
+        return this.getTArrival() - o.getTArrival();
+    }
+
+    public int getID() {
+        return ID;
+    }
+
+    public String printFriendly() {
+        String toReturn = new String("(");
+        toReturn = toReturn + Integer.toString(this.getID()) + ",";
+        toReturn = toReturn + Integer.toString(this.getTArrival()) + ",";
+        toReturn = toReturn + Integer.toString(this.getTService()) + "); ";
+        return  toReturn;
     }
 }
