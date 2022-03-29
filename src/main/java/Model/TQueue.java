@@ -43,7 +43,6 @@ public class TQueue implements Runnable    {
     }
 
     public void addClient(Client toAdd) {
-        //TODO: check size-constraints
         q.add(toAdd);
         this.waitingPeriod.getAndAdd(toAdd.getTService());
     }

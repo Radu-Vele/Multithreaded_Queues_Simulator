@@ -2,42 +2,71 @@ package Logic;
 import Model.*;
 import View.*;
 
+import javax.swing.*;
+import java.awt.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
 import java.lang.reflect.Array;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Random;
 import java.util.random.*;
-
-import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class SimulationManager implements Runnable {
-    private int maxTime = 20;
-    private int maxServiceTime = 5;
-    private int minServiceTime = 3;
-    private int minArrivalTime = 2;
-    private int maxArrivalTime = 15;
-    private int nrOfQueues = 2;
-    private int nrOfClients = 10;
+    private int maxTime;
+    private int maxServiceTime;
+    private int minServiceTime;
+    private int minArrivalTime;
+    private int maxArrivalTime;
+    private int nrOfQueues;
+    private int nrOfClients;
+
+    private File outputFile;
+    private FileWriter outputWriter;
 
     private ArrayList<Client> generatedClients;
     private ArrayList<TQueue> availableQueues;
+    private ArrayList<JLabel> labelsQueues;
     public AtomicInteger globalSimulationTime;
-    //private GUI simulationGUI; TODO: later
+    private GUI simulationGUI;
+    public SimulationManager(GUI simulationGUI) {
+        this.simulationGUI = simulationGUI;
+    }
 
-    public SimulationManager() {
+    public void prepareSimulation () {
+        //fetch data input TODO: try-catch to validate
+        this.maxTime = Integer.parseInt(this.simulationGUI.gettSim().getText());
+        this.maxServiceTime = Integer.parseInt(this.simulationGUI.getMaxService().getText());
+        this.minServiceTime = Integer.parseInt(this.simulationGUI.getMinService().getText());
+        this.minArrivalTime = Integer.parseInt(this.simulationGUI.getMinArrival().getText());
+        this.maxArrivalTime = Integer.parseInt(this.simulationGUI.getMaxArrival().getText());
+        this.nrOfQueues = Integer.parseInt(this.simulationGUI.getNrQueues().getText());
+        this.nrOfClients = Integer.parseInt(this.simulationGUI.getNrClients().getText());
+
         generatedClients = generateRandomClients();
         availableQueues = new ArrayList<TQueue>(nrOfQueues);
+        simulationGUI.getQueuesPanel().setLayout(new GridLayout(nrOfQueues, 1));
+
+        simulationGUI.getQueuesPanel().setLayout(new GridLayout(nrOfQueues, 1));
+        //TODO: add simulation time
+        this.labelsQueues = new ArrayList<JLabel>(nrOfQueues);
 
         for(int i = 0; i < nrOfQueues; i++) { //start threads
             TQueue newQueue = new TQueue();
             availableQueues.add(newQueue);
             Thread t = new Thread(newQueue); //create a thread for each queue
+
+            String initLabel = "Queue " + Integer.toString(i + 1) + ": ";
+
+            this.labelsQueues.add(new JLabel(initLabel));
+            simulationGUI.getQueuesPanel().add(this.labelsQueues.get(i));
             t.start();
         }
+
+        simulationGUI.pack();
 
         globalSimulationTime = new AtomicInteger();
         generatedClients = this.generateRandomClients();
@@ -45,6 +74,19 @@ public class SimulationManager implements Runnable {
 
     @Override
     public void run() {
+        //TODO: empty up the grid Panel
+        try {
+            this.outputFile = new File("output.txt");
+            if(!outputFile.createNewFile()) {
+                System.out.println("Output file not created\n");
+            }
+            this.outputWriter = new FileWriter("output.txt");
+            this.outputWriter.write(">>> LOG OF EVENTS <<<\n-------------------------\n");
+
+        } catch (IOException e) {
+            System.out.println("Error while creating output file\n");
+        }
+
         while(globalSimulationTime.get() < maxTime) {
             globalSimulationTime.getAndIncrement(); //start from time = 1
 
@@ -56,7 +98,7 @@ public class SimulationManager implements Runnable {
                     }
                     else {
                         Client toSend = generatedClients.get(0);
-                        if (toSend.getTArrival() <= globalSimulationTime.get()) { //TODO: if more arrive at the same time?
+                        if (toSend.getTArrival() <= globalSimulationTime.get()) {
                             TQueue chosen = getMinTimeQueue();
                             chosen.addClient(toSend);
                             generatedClients.remove(toSend);
@@ -73,24 +115,41 @@ public class SimulationManager implements Runnable {
                 System.out.println("\nInterrupted thread sleep!");
                 return;
             }
-            //TODO: generate txt file
-            System.out.println("Time" + " " + globalSimulationTime.get() + ":");
+
+            //TODO: Track waiting time in queue for each client + avg waiting time, avg service time, peak hour
+
             String waiting = new String("Waiting clients: ");
-            for (Client currClient: generatedClients) {
-                waiting = waiting + currClient.printFriendly();
+            try {
+                this.outputWriter.write("Time" + " " + globalSimulationTime.get() + ":\n");
+                waiting = new String("Waiting clients: ");
+                for (Client currClient : generatedClients) {
+                    waiting = waiting + currClient.printFriendly();
+                }
+                this.outputWriter.write(waiting);
+                for (int i = 0; i < nrOfQueues; i++) {
+                    String queueContent = new String("\nQueue " + Integer.toString(i + 1) + ":" + availableQueues.get(i).printContents());
+                    outputWriter.write(queueContent);
+                    labelsQueues.get(i).setText(queueContent);
+                }
+                outputWriter.write("\n--------------------------------------------------------------------------\n");
+            } catch(IOException e) {
+                System.out.println("Error encountered while writing in file\n");
             }
-            System.out.println(waiting);
 
-            for(int i = 0; i < nrOfQueues; i++) {
-                System.out.println("Queue " + Integer.toString(i + 1) + ":" + availableQueues.get(i).printContents());
-            }
 
-            //TODO later: update UI Frame
+        }
+
+        try {
+            outputWriter.close();
+        } catch (IOException e) {
+            System.out.println("Error encountered while closing the file writer\n");
         }
 
         for(TQueue currQueue: availableQueues) {
             currQueue.setSimRunning(false);
         }
+
+        System.out.println("Simulation ended!");
     }
 
     public ArrayList<Client> generateRandomClients() {
@@ -132,11 +191,5 @@ public class SimulationManager implements Runnable {
             }
         }
         return  minQueue;
-    }
-
-    public static void main(String[] args) {
-        SimulationManager sim = new SimulationManager();
-        Thread tMain = new Thread(sim);
-        tMain.start();
     }
 }

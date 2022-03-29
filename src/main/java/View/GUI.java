@@ -7,39 +7,79 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 public class GUI extends JFrame {
-    private JPanel mainPanel;
-    private JPanel statePanel;
-    private JPanel inputsPanel;
-    private JPanel numberInsert;
-    private JTextField textField1;
-    private JTextField textField2;
-    private JLabel queuesLabel;
-    private JLabel clientsLabel;
-    private JPanel simulationInsert;
-    private JLabel intervalLabel;
-    private JTextField textField3;
-    private JLabel arrivalLabel;
-    private JLabel minArrivalLabel;
-    private JLabel maxArrivalLabel;
+
+    JPanel mainPanel;
+    private JPanel inputPanel;
+    private JTextField nrClients;
+    private JTextField nrQueues;
+    private JTextField tSim;
     private JTextField minArrival;
     private JTextField maxArrival;
-    private JLabel serviceLabel;
-    private JLabel minServiceLabel;
-    private JLabel maxServiceLabel;
     private JTextField minService;
     private JTextField maxService;
-    private JButton simulateButton;
-    //TODO: set-up GUI output
+    private JButton STARTButton;
+    private JPanel inputPanel2;
+    private JLabel nrClientsLabel;
+    private JLabel nrQueuesLabel;
+    private JLabel tSimLabel;
+    private JLabel minArrLabel;
+    private JLabel maxArrLabel;
+    private JLabel minSerLabel;
+    private JLabel maxSerLabel;
+    private JLabel startLabel;
+    private JPanel queuesPanel;
 
-    SimulationManager simulationManager = new SimulationManager();
+    SimulationManager simulationManager;
 
     public GUI() throws HeadlessException {
         setTitle("Queue Management Simulator");
-        setSize(500, 800);
+        setSize(680, 300);
         setVisible(true);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setContentPane(mainPanel);
+        simulationManager = new SimulationManager(this);
+
+        STARTButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) { // when button is pressed -> fetch data, validate, start simulation
+                simulationManager.prepareSimulation();
+                Thread tMain = new Thread(simulationManager);
+                tMain.start();
+                System.out.println("Simulation in progress...");
+            }
+        });
     }
 
+    public JTextField getNrClients() {
+        return nrClients;
+    }
+
+    public JTextField getNrQueues() {
+        return nrQueues;
+    }
+
+    public JTextField gettSim() {
+        return tSim;
+    }
+
+    public JTextField getMinArrival() {
+        return minArrival;
+    }
+
+    public JTextField getMaxArrival() {
+        return maxArrival;
+    }
+
+    public JTextField getMinService() {
+        return minService;
+    }
+
+    public JTextField getMaxService() {
+        return maxService;
+    }
+
+    public JPanel getQueuesPanel() {
+        return queuesPanel;
+    }
 }
