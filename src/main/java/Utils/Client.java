@@ -1,4 +1,4 @@
-package Model;
+package Utils;
 
 public class Client implements Comparable<Client>{
     private int ID;

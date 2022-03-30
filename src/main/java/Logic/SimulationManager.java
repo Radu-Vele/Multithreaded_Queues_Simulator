@@ -1,5 +1,5 @@
 package Logic;
-import Model.*;
+import Utils.*;
 import View.*;
 
 import javax.swing.*;
@@ -9,7 +9,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Random;
-import java.util.random.*;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -39,6 +38,7 @@ public class SimulationManager implements Runnable {
 
     public boolean prepareSimulation () { //return true or false to validate the preparation
         try {
+            //TODO: more edge cases -> negative inputs, zero inputs, and more.
             this.maxTime = Integer.parseInt(this.simulationGUI.gettSim().getText());
             this.maxServiceTime = Integer.parseInt(this.simulationGUI.getMaxService().getText());
             this.minServiceTime = Integer.parseInt(this.simulationGUI.getMinService().getText());
@@ -178,12 +178,6 @@ public class SimulationManager implements Runnable {
                 maxClientsInQueues = currClientsInQueues;
             }
         }
-
-        try {
-            outputWriter.close();
-        } catch (IOException e) {
-            System.out.println("Error encountered while closing the file writer\n");
-        }
         //stop queues threads and compute avg waiting time
         int totalWaitingTime = 0;
         int totalClientsServed = 0;
@@ -197,6 +191,16 @@ public class SimulationManager implements Runnable {
         waitingTimeLabel.setText("Average Waiting Time: " + Double.toString(avgWaitingTime));
         peakHourLabel.setText("Peak Hour: " + Integer.toString(peakHour));
         System.out.println("Simulation ended!");
+
+        try {
+            outputWriter.write("Average Service Time: " + Double.toString(avgServiceTime) + "\n");
+            outputWriter.write("Average Waiting Time: " + Double.toString(avgWaitingTime) + '\n');
+            outputWriter.write("Peak Hour: " + Integer.toString(peakHour) + '\n');
+            outputWriter.write("\n----------------------------------EOF-------------------------------------");
+            outputWriter.close();
+        } catch (IOException e) {
+            System.out.println("Error encountered while closing the file writer\n");
+        }
     }
 
     public ArrayList<Client> generateRandomClients(){
