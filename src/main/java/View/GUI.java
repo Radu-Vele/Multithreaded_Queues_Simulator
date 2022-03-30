@@ -33,7 +33,7 @@ public class GUI extends JFrame {
 
     public GUI() throws HeadlessException {
         setTitle("Queue Management Simulator");
-        setSize(680, 300);
+        setSize(800, 300);
         setVisible(true);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -43,10 +43,15 @@ public class GUI extends JFrame {
         STARTButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) { // when button is pressed -> fetch data, validate, start simulation
-                simulationManager.prepareSimulation();
-                Thread tMain = new Thread(simulationManager);
-                tMain.start();
-                System.out.println("Simulation in progress...");
+                if(simulationManager.prepareSimulation() == true) {
+                    //start thread only if the returned from prepare is true
+                    Thread tMain = new Thread(simulationManager);
+                    tMain.start();
+                    System.out.println("Simulation in progress...");
+                }
+                else {
+                    System.out.println("Failed Simulation Start!");
+                }
             }
         });
     }

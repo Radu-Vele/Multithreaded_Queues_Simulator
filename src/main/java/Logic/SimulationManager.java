@@ -7,8 +7,6 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-
-import java.lang.reflect.Array;
 import java.util.Collections;
 import java.util.Random;
 import java.util.random.*;
@@ -23,58 +21,92 @@ public class SimulationManager implements Runnable {
     private int maxArrivalTime;
     private int nrOfQueues;
     private int nrOfClients;
-
     private File outputFile;
     private FileWriter outputWriter;
-
     private ArrayList<Client> generatedClients;
     private ArrayList<TQueue> availableQueues;
     private ArrayList<JLabel> labelsQueues;
-    public AtomicInteger globalSimulationTime;
-    private GUI simulationGUI;
+    private JLabel timeLabel;
+    private JLabel waitingLabel;
+    private JLabel serviceTimeLabel;
+    private JLabel peakHourLabel;
+    private JLabel waitingTimeLabel;
+    public static AtomicInteger globalSimulationTime;
+    private final GUI simulationGUI;
     public SimulationManager(GUI simulationGUI) {
         this.simulationGUI = simulationGUI;
     }
 
-    public void prepareSimulation () {
-        //fetch data input TODO: try-catch to validate
-        this.maxTime = Integer.parseInt(this.simulationGUI.gettSim().getText());
-        this.maxServiceTime = Integer.parseInt(this.simulationGUI.getMaxService().getText());
-        this.minServiceTime = Integer.parseInt(this.simulationGUI.getMinService().getText());
-        this.minArrivalTime = Integer.parseInt(this.simulationGUI.getMinArrival().getText());
-        this.maxArrivalTime = Integer.parseInt(this.simulationGUI.getMaxArrival().getText());
-        this.nrOfQueues = Integer.parseInt(this.simulationGUI.getNrQueues().getText());
-        this.nrOfClients = Integer.parseInt(this.simulationGUI.getNrClients().getText());
+    public boolean prepareSimulation () { //return true or false to validate the preparation
+        try {
+            this.maxTime = Integer.parseInt(this.simulationGUI.gettSim().getText());
+            this.maxServiceTime = Integer.parseInt(this.simulationGUI.getMaxService().getText());
+            this.minServiceTime = Integer.parseInt(this.simulationGUI.getMinService().getText());
+            this.minArrivalTime = Integer.parseInt(this.simulationGUI.getMinArrival().getText());
+            this.maxArrivalTime = Integer.parseInt(this.simulationGUI.getMaxArrival().getText());
+            this.nrOfQueues = Integer.parseInt(this.simulationGUI.getNrQueues().getText());
+            this.nrOfClients = Integer.parseInt(this.simulationGUI.getNrClients().getText());
+        } catch (NumberFormatException e) {
+            ErrorScreen errorScreen = new ErrorScreen("Error! The inserted numbers are not integers");
+            return false;
+        }
 
+        globalSimulationTime = new AtomicInteger();
+        if((generatedClients = this.generateRandomClients()) == null) {
+            return false;
+        }
+
+        this.timeLabel = new JLabel("Current time: 0");
+        this.waitingLabel = new JLabel("Waiting Clients: -");
         generatedClients = generateRandomClients();
         availableQueues = new ArrayList<TQueue>(nrOfQueues);
-        simulationGUI.getQueuesPanel().setLayout(new GridLayout(nrOfQueues, 1));
+        simulationGUI.getQueuesPanel().removeAll();
+        simulationGUI.getQueuesPanel().setLayout(new GridLayout(nrOfQueues + 6, 1));
+        simulationGUI.getQueuesPanel().add(timeLabel);
+        simulationGUI.getQueuesPanel().add(waitingLabel);
 
-        simulationGUI.getQueuesPanel().setLayout(new GridLayout(nrOfQueues, 1));
-        //TODO: add simulation time
         this.labelsQueues = new ArrayList<JLabel>(nrOfQueues);
-
         for(int i = 0; i < nrOfQueues; i++) { //start threads
             TQueue newQueue = new TQueue();
             availableQueues.add(newQueue);
             Thread t = new Thread(newQueue); //create a thread for each queue
-
-            String initLabel = "Queue " + Integer.toString(i + 1) + ": ";
-
+            String initLabel = "Queue " + Integer.toString(i + 1) + ": closed";
             this.labelsQueues.add(new JLabel(initLabel));
             simulationGUI.getQueuesPanel().add(this.labelsQueues.get(i));
             t.start();
         }
 
-        simulationGUI.pack();
+        serviceTimeLabel = new JLabel("Average Service Time: -");
+        waitingTimeLabel = new JLabel("Average Waiting Time: -");
+        peakHourLabel = new JLabel("Peak Hour: -");
 
-        globalSimulationTime = new AtomicInteger();
-        generatedClients = this.generateRandomClients();
+        simulationGUI.getQueuesPanel().add(new Label(" "));
+        simulationGUI.getQueuesPanel().add(waitingTimeLabel);
+        simulationGUI.getQueuesPanel().add(serviceTimeLabel);
+        simulationGUI.getQueuesPanel().add(peakHourLabel);
+
+        simulationGUI.pack();
+        return true;
     }
 
     @Override
     public void run() {
-        //TODO: empty up the grid Panel
+        //compute service time & other stats--
+        int maxClientsInQueues = 0;
+        int peakHour = 0;
+        int currClientsInQueues = 0;
+        double avgServiceTime = 0;
+
+        for(Client client:generatedClients) {
+            avgServiceTime += client.getTService();
+        }
+        avgServiceTime /= nrOfClients;
+        serviceTimeLabel.setText("Average Waiting Time: " + Double.toString(avgServiceTime));
+        //---
+        //Delete previously existing files
+        File toDel = new File("output.txt");
+        toDel.delete();
+        //---
         try {
             this.outputFile = new File("output.txt");
             if(!outputFile.createNewFile()) {
@@ -116,9 +148,10 @@ public class SimulationManager implements Runnable {
                 return;
             }
 
-            //TODO: Track waiting time in queue for each client + avg waiting time, avg service time, peak hour
-
-            String waiting = new String("Waiting clients: ");
+            //printing to file and gui ------------------------------------------------------------------------
+            String waiting = "Waiting clients: ";
+            String timeText = new String("Current time: " + Integer.toString(globalSimulationTime.get()));
+            currClientsInQueues = 0;
             try {
                 this.outputWriter.write("Time" + " " + globalSimulationTime.get() + ":\n");
                 waiting = new String("Waiting clients: ");
@@ -127,16 +160,23 @@ public class SimulationManager implements Runnable {
                 }
                 this.outputWriter.write(waiting);
                 for (int i = 0; i < nrOfQueues; i++) {
-                    String queueContent = new String("\nQueue " + Integer.toString(i + 1) + ":" + availableQueues.get(i).printContents());
+                    String queueContent = new String("\nQueue " + Integer.toString(i + 1) + ": " + availableQueues.get(i).printContents());
                     outputWriter.write(queueContent);
                     labelsQueues.get(i).setText(queueContent);
+                    currClientsInQueues += availableQueues.get(i).getQ().size();
                 }
+
+                timeLabel.setText(timeText);
+                waitingLabel.setText(waiting);
                 outputWriter.write("\n--------------------------------------------------------------------------\n");
             } catch(IOException e) {
                 System.out.println("Error encountered while writing in file\n");
             }
 
-
+            if(currClientsInQueues > maxClientsInQueues) {
+                peakHour = globalSimulationTime.get();
+                maxClientsInQueues = currClientsInQueues;
+            }
         }
 
         try {
@@ -149,36 +189,42 @@ public class SimulationManager implements Runnable {
             currQueue.setSimRunning(false);
         }
 
+        peakHourLabel.setText("Peak Hour: " + Integer.toString(peakHour));
         System.out.println("Simulation ended!");
     }
 
-    public ArrayList<Client> generateRandomClients() {
+    public ArrayList<Client> generateRandomClients(){
         ArrayList<Client> toReturn = new ArrayList<Client>(nrOfClients);
-        Random randomGen = new Random();
-        boolean [] validID = new boolean[nrOfClients + 1];
 
-        for(int i = 0; i < nrOfClients + 1; i++) {
-            validID[i] = true;
-        }
-
-        for(int i = 0; i < this.nrOfClients; i++) { //clients generation
-            int randID;
-            while(true) { //unique ID for each client
-                int index = randomGen.nextInt(1, nrOfClients + 1);
-                if(validID[index]) {
-                    randID = index;
-                    validID[index] = false;
-                    break;
-                }
+        try {
+            Random randomGen = new Random();
+            boolean[] validID = new boolean[nrOfClients + 1];
+            for (int i = 0; i < nrOfClients + 1; i++) {
+                validID[i] = true;
             }
 
-            int randArrival = randomGen.nextInt(this.minArrivalTime, this.maxArrivalTime + 1);
-            int randService = randomGen.nextInt(minServiceTime, maxServiceTime + 1);
-            Client toAdd = new Client(randID, randArrival, randService);
-            toReturn.add(toAdd);
-        }
+            for (int i = 0; i < this.nrOfClients; i++) { //clients generation
+                int randID;
+                while (true) { //unique ID for each client
+                    int index = randomGen.nextInt(1, nrOfClients + 1);
+                    if (validID[index]) {
+                        randID = index;
+                        validID[index] = false;
+                        break;
+                    }
+                }
 
-        Collections.sort(toReturn);
+                int randArrival = randomGen.nextInt(this.minArrivalTime, this.maxArrivalTime + 1);
+                int randService = randomGen.nextInt(minServiceTime, maxServiceTime + 1);
+                Client toAdd = new Client(randID, randArrival, randService);
+                toReturn.add(toAdd);
+            }
+
+            Collections.sort(toReturn);
+        } catch (IllegalArgumentException e) {
+            ErrorScreen errorScreen = new ErrorScreen("Error! You inserted maximum values smaller than minimum values!");
+            return null;
+        }
         return toReturn;
     }
 
