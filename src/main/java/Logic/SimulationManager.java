@@ -184,11 +184,17 @@ public class SimulationManager implements Runnable {
         } catch (IOException e) {
             System.out.println("Error encountered while closing the file writer\n");
         }
+        //stop queues threads and compute avg waiting time
+        int totalWaitingTime = 0;
+        int totalClientsServed = 0;
 
         for(TQueue currQueue: availableQueues) {
             currQueue.setSimRunning(false);
+            totalWaitingTime += currQueue.getTotalWaitingTime().get();
+            totalClientsServed += currQueue.getTotalClientsServed().get();
         }
-
+        double avgWaitingTime = (double) totalWaitingTime / (double) totalClientsServed;
+        waitingTimeLabel.setText("Average Waiting Time: " + Double.toString(avgWaitingTime));
         peakHourLabel.setText("Peak Hour: " + Integer.toString(peakHour));
         System.out.println("Simulation ended!");
     }

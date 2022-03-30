@@ -1,5 +1,7 @@
 package Model;
 
+import Logic.SimulationManager;
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -7,10 +9,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TQueue implements Runnable    {
     private BlockingQueue<Client> q = new LinkedBlockingQueue<Client>(); //thread-safe data structure
     private AtomicInteger waitingPeriod;
+    private AtomicInteger totalWaitingTime;
+    private AtomicInteger totalClientsServed;
     private boolean simRunning;
 
     public TQueue() {
         this.waitingPeriod = new AtomicInteger(0);
+        this.totalWaitingTime = new AtomicInteger(0);
+        this.totalClientsServed = new AtomicInteger(0);
         simRunning = true;
     }
 
@@ -34,6 +40,12 @@ public class TQueue implements Runnable    {
                 return;
             }
             this.waitingPeriod.getAndAdd(- currClient.getTService());
+
+            //for total waiting time computation
+            int toAdd = SimulationManager.globalSimulationTime.get() - currClient.getTArrival();
+            totalWaitingTime.getAndAdd(toAdd); //the total waiting time of the clients in the queue;
+            totalClientsServed.getAndIncrement();
+
             q.remove();
         }
     }
@@ -67,5 +79,13 @@ public class TQueue implements Runnable    {
         }
 
         return toReturn;
+    }
+
+    public AtomicInteger getTotalClientsServed() {
+        return totalClientsServed;
+    }
+
+    public AtomicInteger getTotalWaitingTime() {
+        return totalWaitingTime;
     }
 }
